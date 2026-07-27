@@ -1,3 +1,11 @@
+## Installing
+
+1. Copy this folder into `RimWorld\Mods\` — that's Performance Fish.
+2. **Move the `Fishery-1.6` subfolder OUT**, so it sits next to Performance Fish in `Mods\`,
+   not inside it. RimWorld will not load a mod nested inside another mod.
+
+
+
 # Performance Fish
 ![](About/Preview.png?raw=true)  
   
