@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net48</TargetFramework>
+        <LangVersion>10.0</LangVersion>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Tests</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\API\API.csproj" />
+      <ProjectReference Include="..\TestAssemblyTarget\TestAssemblyTarget.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+
+      <!-- Nuget dependencies -->
+      <PackageReference Include="Krafs.Publicizer" Version="2.3.0" />
+      <PackageReference Include="Lib.Harmony" Version="2.4.2" ExcludeAssets="runtime" />
+
+    </ItemGroup>
+
+    <ItemGroup>
+      <Publicize Include="0Harmony" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Using Include="System" />
+    </ItemGroup>
+
+</Project>

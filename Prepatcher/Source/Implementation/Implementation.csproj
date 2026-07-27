@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net472</TargetFramework>
+        <LangVersion>10.0</LangVersion>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <OutputPath>..\..\Assemblies\</OutputPath>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <RootNamespace>Prepatcher</RootNamespace>
+        <AssemblyName>PrepatcherImpl</AssemblyName>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DebugType>none</DebugType>
+    </PropertyGroup>
+
+  <ItemGroup>
+
+    <!-- Nuget dependencies -->
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0" />
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" />
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.4633" />
+
+  </ItemGroup>
+
+  <ItemGroup>
+    <Publicize Include="UnityEngine.CoreModule;UnityEngine.UIElementsModule;Assembly-CSharp;0Harmony" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\API\API.csproj" />
+    <ProjectReference Include="..\DataAssembly\DataAssembly.csproj" />
+    <ProjectReference Include="..\Prestarter\Prestarter.csproj" />
+  </ItemGroup>
+
+</Project>
