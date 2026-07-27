@@ -1,8 +1,10 @@
 ## Installing
 
+This repo bundles both dependencies, because no official 1.6 Fishery exists.
+
 1. Copy this folder into `RimWorld\Mods\` — that's Performance Fish itself.
 2. **Move `Fishery-1.6` and `Prepatcher` OUT of it**, so all three sit side by side in
-   `Mods\`. RimWorld will not load a mod that's nested inside another mod.
+   `Mods\`. RimWorld will not load a mod nested inside another mod.
 
 
 
