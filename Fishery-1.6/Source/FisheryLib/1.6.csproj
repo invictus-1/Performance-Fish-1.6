@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutDir>..\..\1.6\Assemblies\</OutDir>
+		<Copyright>Copyright (c) 2024 Bradson</Copyright>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+		<DefineConstants>DEBUG;V1_6</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+		<DefineConstants>V1_6</DefineConstants>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.*" />
+		<!-- 2.4.* matches the Harmony that Prepatcher ships for 1.6. -->
+		<PackageReference Include="Lib.Harmony" Version="2.4.*" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<!--
+		Fix for the 184 CS0433 "Span<T> exists in both 0Harmony and mscorlib" errors.
+
+		Verified by reading the assembly metadata directly: System.Span`1 and
+		System.ReadOnlySpan`1 are INTERNAL in both Harmony 2.3.3 and 2.4.2. So the Harmony
+		version was never the cause, and the DoNotPublicize entries in Directory.Build.Props
+		are not what is failing either.
+
+		The cause is Krafs.Publicizer. Publicizing an assembly emits an assembly-level
+		[IgnoresAccessChecksTo("0Harmony")], which tells the compiler to ignore accessibility
+		for that assembly WHOLESALE. DoNotPublicize only controls the IL rewrite; it cannot
+		claw back the access-check bypass. So Harmony's internal Span<T> becomes visible and
+		collides with the Span<T> that RimWorld 1.6's newer Unity mscorlib now provides.
+		Under 1.5 the collision was invisible because that mscorlib had no Span<T>.
+
+		Directory.Build.Props declares <Publicize Include="Assembly-CSharp;0Harmony" />,
+		which produces two separate items. Removing just the 0Harmony one keeps
+		Assembly-CSharp publicized (which Fishery genuinely needs) and drops the Harmony
+		access-check bypass (which it may not need at all).
+
+		If Fishery does turn out to need Harmony internals, this surfaces as a small, specific
+		set of CS0122 "inaccessible due to protection level" errors - far easier to handle
+		than 184 ambiguities.
+	-->
+	<PropertyGroup>
+		<!--
+			Default is "Unsafe;IgnoresAccessChecksTo". IgnoresAccessChecksTo emits an
+			assembly-wide [IgnoresAccessChecksTo("0Harmony")], which Roslyn honours by
+			disregarding accessibility for that ENTIRE assembly. That is what dragged
+			Harmony's internal System.Span<T> into scope and produced the 184 CS0433s -
+			the DoNotPublicize entries in Directory.Build.Props never stood a chance
+			against a blanket bypass.
+
+			RimWorld runs on Mono, and Publicizer's own docs state the Unsafe strategy
+			covers most Mono versions. So Unsafe alone is both sufficient and correct here.
+		-->
+		<PublicizerRuntimeStrategies>Unsafe</PublicizerRuntimeStrategies>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!--
+			Drop the blanket 0Harmony entry inherited from Directory.Build.Props and replace
+			it with a targeted one. Fishery only needs Harmony's bundled Mono.Cecil - all 192
+			CS0122 errors came from exactly 4 files under FisheryLib\Cecil\, asking for
+			TypeReference, MethodDefinition, ILProcessor, Instruction, OpCode and friends.
+
+			MemberPattern is Publicizer's regex filter. "^Mono\." covers Mono.Cecil,
+			Mono.Cecil.Cil and Mono.Collections.Generic (Collection<T>), which is the full
+			set the errors named. System.Span<T> does not match, so it stays internal and
+			invisible, and the ambiguity cannot come back.
+
+			Assembly-CSharp stays fully publicized - that item is untouched.
+		-->
+		<Publicize Remove="0Harmony" />
+		<!--
+			Pattern widened after round 2. "^Mono\." missed two things:
+			  - MonoMod.Utils.Extensions.Is(TypeReference, Type)  -> "MonoMod" has no dot
+			    after "Mono", so the anchor never matched. Caused the CS1501 'Is' errors.
+			  - HarmonyLib.CodeInstructionExtensions.constantLoadingCodes -> CS0117.
+			System.Span<T> still does not match, so the CS0433 ambiguity stays fixed.
+		-->
+		<Publicize Include="0Harmony" MemberPattern="^(Mono\.|MonoMod\.|HarmonyLib\.)" IncludeVirtualMembers="false" />
+
+		<!--
+			System.Array.UnsafeLoad / UnsafeStore / UnsafeMov are Mono-internal and were never
+			listed in Directory.Build.Props. They compiled under 1.5 only because the
+			IgnoresAccessChecksTo bypass made every mscorlib internal visible. With that
+			strategy off, they need naming explicitly.
+		-->
+		<Publicize Include="mscorlib:System.Array.UnsafeLoad" />
+		<Publicize Include="mscorlib:System.Array.UnsafeStore" />
+		<Publicize Include="mscorlib:System.Array.UnsafeMov" />
+
+		<!--
+			RimWorld 1.6's mscorlib uses the modern BCL field names. Read directly out of
+			krafs.rimworld.ref 1.6.4871 ref\net472\mscorlib.dll:
+
+			  Dictionary`2 : _buckets, _entries, _count, _freeList, _freeCount, _version, ...
+			  String       : _stringLength, _firstChar, Empty
+
+			Directory.Build.Props names the .NET Framework-era spellings (buckets, entries,
+			version, m_firstChar). Those entries now match nothing and silently no-op, so the
+			corrected names are added here. The stale ones are left alone rather than edited
+			out of Directory.Build.Props, because that file is shared with the 1.2-1.5
+			projects, where the old names are still correct.
+
+			Dictionary`2+Entry kept its field names (hashCode, next, key, value), so the
+			existing entry for it needs no change.
+		-->
+		<Publicize Include="mscorlib:System.Collections.Generic.Dictionary`2._buckets" />
+		<Publicize Include="mscorlib:System.Collections.Generic.Dictionary`2._entries" />
+		<Publicize Include="mscorlib:System.Collections.Generic.Dictionary`2._version" />
+		<Publicize Include="mscorlib:System.String._firstChar" />
+	</ItemGroup>
+</Project>
