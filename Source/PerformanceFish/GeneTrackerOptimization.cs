@@ -90,7 +90,17 @@ public sealed class GeneTrackerOptimization : ClassWithFishPrepatches
 		// scan happens at a well-defined point instead of lazily mid-method.
 		static GeneTrackerTickPatch()
 		{
+			// Same 1.6 trap as WorldObjectsOptimization: Verse.Gene declares both Tick and
+			// TickInterval now, so a gene that moved to interval ticking would be seen as
+			// "never does anything on tick" and silently skipped forever. Checking both names
+			// means a gene is only skippable when it overrides neither.
+#if V1_6
+			SkippableTypes = typeof(Gene)
+				.SubclassesWithNoMethodOverrideAndSelf(nameof(Gene.Tick), nameof(Gene.TickInterval))
+				.ToHashSet();
+#else
 			SkippableTypes = typeof(Gene).SubclassesWithNoMethodOverrideAndSelf(nameof(Gene.Tick)).ToHashSet();
+#endif
 		}
 	}
 }

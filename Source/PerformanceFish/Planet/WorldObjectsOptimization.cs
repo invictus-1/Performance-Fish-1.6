@@ -119,15 +119,46 @@ public sealed class WorldObjectsOptimization : ClassWithFishPrepatches
 			SkippableComps = InitializeSkippableComps(),
 			SkippableWorldObjects = InitializeSkippableWorldObjects();
 
+		// RimWorld 1.6 moved world objects to interval ticking. Verified against
+		// Assembly-CSharp 1.6.9676:
+		//     WorldObject      : DoTick, Tick, TickInterval
+		//     Caravan          : TickInterval     <- NO Tick override
+		//     Settlement       : TickInterval     <- NO Tick override
+		//     WorldObjectComp  : CompTick, CompTickInterval
+		//
+		// Checking only "Tick" meant AccessTools resolved the INHERITED WorldObject.Tick for
+		// anything that had moved to TickInterval. Its declaring type is whitelisted, so the
+		// scan concluded "this type does nothing when ticked" and added it to
+		// SkippableWorldObjects - which then never ticks it at all.
+		//
+		// That silently froze every world object using the new model: vanilla caravans,
+		// transport pods, and mod ships like SRTS simply stopped moving on the world map.
+		// Nothing throws, so nothing appears in the log - the object is just never asked
+		// to tick.
+		//
+		// Passing BOTH names fixes it: SubclassesWithNoMethodOverride only reports a type as
+		// skippable when EVERY name resolves to a whitelisted declaring type, so a type that
+		// overrides either Tick or TickInterval is now correctly kept.
 		private static HashSet<Type> InitializeSkippableComps()
-			=> MakeSubclassHashSet(typeof(WorldObjectComp), nameof(WorldObjectComp.CompTick),
-				_whitelistedTickingCompTypes);
+#if V1_6
+			=> MakeSubclassHashSet(typeof(WorldObjectComp), _whitelistedTickingCompTypes,
+				nameof(WorldObjectComp.CompTick), nameof(WorldObjectComp.CompTickInterval));
+#else
+			=> MakeSubclassHashSet(typeof(WorldObjectComp), _whitelistedTickingCompTypes,
+				nameof(WorldObjectComp.CompTick));
+#endif
 
 		private static HashSet<Type> InitializeSkippableWorldObjects()
-			=> MakeSubclassHashSet(typeof(WorldObject), "Tick", _whitelistedWorldObjectTypes);
+#if V1_6
+			=> MakeSubclassHashSet(typeof(WorldObject), _whitelistedWorldObjectTypes,
+				"Tick", "TickInterval");
+#else
+			=> MakeSubclassHashSet(typeof(WorldObject), _whitelistedWorldObjectTypes, "Tick");
+#endif
 
-		private static HashSet<Type> MakeSubclassHashSet(Type type, string name, Type?[] allowedDeclaringTypes)
-			=> type.SubclassesWithNoMethodOverrideAndSelf(allowedDeclaringTypes, name).ToHashSet();
+		private static HashSet<Type> MakeSubclassHashSet(Type type, Type?[] allowedDeclaringTypes,
+			params string[] names)
+			=> type.SubclassesWithNoMethodOverrideAndSelf(allowedDeclaringTypes, names).ToHashSet();
 
 		public static bool CacheDirty(WorldObjectsHolder instance)
 			=> CachedWorldObjectsVersion != instance.worldObjects._version
