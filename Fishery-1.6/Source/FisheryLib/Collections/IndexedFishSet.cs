@@ -59,9 +59,35 @@ public class IndexedFishSet<T> : IList<T>, IList, IReadOnlyList<T>
 
 	public void Add(T item)
 	{
-		if (!_indices.TryAdd(item, _items.Count))
-			ThrowHelper.ThrowInvalidOperationException();
-		
+		// Null keys must never enter _indices. FishTable hashes via ThingHelper.GetKey,
+		// which dereferences the key unconditionally - a null in the table makes every
+		// later probe that walks over it throw NullReferenceException.
+		if (item is null)
+			return;
+
+		if (_indices.TryAdd(item, _items.Count))
+		{
+			_items.Add(item);
+			return;
+		}
+
+		// Already indexed. Two possibilities:
+		//  a) genuine double-add by the caller - a no-op is correct
+		//  b) _indices desynced from _items because a previous Remove threw partway
+		//     through FishTable.RemoveInternal, leaving the key present but _items
+		//     untouched. Throwing here is what turned one failure into a permanent map
+		//     desync: ListerThings.Add is not exception-safe, so the Thing ends up in the
+		//     type list but not the region grid, and every subsequent move re-throws.
+		// Verify which case this is and repair rather than throw.
+		if (_indices.TryGetValue(item, out var existingIndex)
+			&& (uint)existingIndex < (uint)_items.Count
+			&& EqualityComparer<T>.Default.Equals(_items[existingIndex], item))
+		{
+			return;
+		}
+
+		_indices.Remove(item);
+		_indices.Add(item, _items.Count);
 		_items.Add(item);
 	}
 
@@ -104,6 +130,9 @@ public class IndexedFishSet<T> : IList<T>, IList, IReadOnlyList<T>
 
 	public bool Remove(T item)
 	{
+		if (item is null)
+			return false;
+
 		if (!_indices.Remove(item, out var index))
 			return false;
 

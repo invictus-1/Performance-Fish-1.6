@@ -32,7 +32,7 @@ public static class OnAssembliesLoaded
 		
 		// One-line startup note so the active skip configuration is always visible in the
 		// log. Cheap, and it is the first thing worth knowing when diagnosing anything here.
-		Verse.Log.Message($"[Performance Fish] 1.6 build v10 (tickinterval fix) - {
+		Verse.Log.Message($"[Performance Fish] 1.6 build v11 (lister desync containment) - {
 			PerformanceFishMod.SkipListStatus ?? "no skip file"}");
 		TryPatchGraphicsSetter();
 		TryPatchPerformanceOptimizer();

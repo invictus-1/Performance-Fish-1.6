@@ -97,6 +97,8 @@ public sealed class ThingsPrepatches : ClassWithFishPrepatches
 		}
 	}
 
+	private static bool _loggedTypeListFailure;
+
 	public static void AddToDefList(ListerThings lister, Thing thing)
 	{
 		if (!lister.listsByDef.TryGetValue(thing.def, out var value))
@@ -123,22 +125,44 @@ public sealed class ThingsPrepatches : ClassWithFishPrepatches
 		lister.IndexMapByGroup()[new(thingRequestGroup, thing.GetKey())] = list.Count - 1;
 	}
 
+	// Vanilla ListerThings.Add is not exception-safe: it is called from the middle of
+	// Thing.set_Position, between DeregisterInRegions and RegisterInRegions. An exception
+	// escaping here leaves the Thing in the type list but inconsistent with the region
+	// grid, and every later move re-throws - a permanent map desync from one failure.
+	// Butter++ wraps ticks in SafeTick and swallows per-item exceptions, so the game keeps
+	// running and the damage spreads silently. Contain it here instead.
 	public static void AddToTypeList(ListerThings lister, Thing thing)
 	{
+		if (thing is null)
+			return;
+
 		var thingType = thing.GetType();
 		if (thingType == typeof(Thing))
 			return;
 
-		var cache = lister.Cache();
-
-		do
+		try
 		{
-			if (thingType == null)
-				break;
+			var cache = lister.Cache();
 
-			cache.ThingsByType.GetOrAdd(thingType).Add(thing);
+			do
+			{
+				if (thingType == null)
+					break;
+
+				cache.ThingsByType.GetOrAdd(thingType).Add(thing);
+			}
+			while ((thingType = thingType.BaseType) != typeof(Thing));
 		}
-		while ((thingType = thingType.BaseType) != typeof(Thing));
+		catch (Exception e)
+		{
+			if (!_loggedTypeListFailure)
+			{
+				_loggedTypeListFailure = true;
+				Log.Error($"Performance Fish failed in AddToTypeList for {thing.ToStringSafe()}. "
+					+ "The type list cache is now unreliable for this session; ListerThings "
+					+ "itself is unaffected. Reported once per session.\n{e}");
+			}
+		}
 	}
 
 	public static void RemoveFromDefList(ListerThings lister, Thing thing)
@@ -199,22 +223,44 @@ public sealed class ThingsPrepatches : ClassWithFishPrepatches
 		lister.stateHashByGroup[(uint)thingRequestGroup]++;
 	}
 
+	// Vanilla ListerThings.Remove is not exception-safe: it is called from the middle of
+	// Thing.set_Position, between DeregisterInRegions and RegisterInRegions. An exception
+	// escaping here leaves the Thing in the type list but inconsistent with the region
+	// grid, and every later move re-throws - a permanent map desync from one failure.
+	// Butter++ wraps ticks in SafeTick and swallows per-item exceptions, so the game keeps
+	// running and the damage spreads silently. Contain it here instead.
 	public static void RemoveFromTypeList(ListerThings lister, Thing thing)
 	{
+		if (thing is null)
+			return;
+
 		var thingType = thing.GetType();
 		if (thingType == typeof(Thing))
 			return;
 
-		var cache = lister.Cache();
-
-		do
+		try
 		{
-			if (thingType == null)
-				break;
+			var cache = lister.Cache();
 
-			cache.ThingsByType.GetOrAdd(thingType).Remove(thing);
+			do
+			{
+				if (thingType == null)
+					break;
+
+				cache.ThingsByType.GetOrAdd(thingType).Remove(thing);
+			}
+			while ((thingType = thingType.BaseType) != typeof(Thing));
 		}
-		while ((thingType = thingType.BaseType) != typeof(Thing));
+		catch (Exception e)
+		{
+			if (!_loggedTypeListFailure)
+			{
+				_loggedTypeListFailure = true;
+				Log.Error($"Performance Fish failed in RemoveFromTypeList for {thing.ToStringSafe()}. "
+					+ "The type list cache is now unreliable for this session; ListerThings "
+					+ "itself is unaffected. Reported once per session.\n{e}");
+			}
+		}
 	}
 
 	public sealed class ContainsPatch : FishPrepatch
