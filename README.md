@@ -1,3 +1,6 @@
+Completely updated to work with 1.6 currently using it in a modpack I made with roughly 280 mods and have had no issues. Any I come across I've been fixing. Prepatcher and fishery are included. Prepatcher is just a clone from the time I got it from the repo. Fishery is completely updated for 1.6 as without it there are far too many issues. I got tired of waiting centuries for someone to update it, or its in development, or any other bs so I did it myself. Yeah I used AI if you hate AI go cry somewhere else or wait until 2077 for the indevelopment version to be done. If you're actually curious how I did it I used claude desktop + cowork and gave opus 5 all the documentation for rimworld 1.6 and how mods are made and let it do the work while I helped it find bugs and patch them. Took roughly 2 days total. Should be the same for any other mod so if you want to update mods you can do it this way. 
+
+
 # Performance Fish
 ![](About/Preview.png?raw=true)  
   
